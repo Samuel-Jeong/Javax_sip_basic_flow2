@@ -6,10 +6,10 @@ package com.signal.logic;
  */
 public class main {
     /**
-     * @param args 매개변수(입력)
-     * @return 반환값 없음
      * @fn public static void com.signal.logic.main(String[] args) throws SipException
      * @brief SIP 기본 호 시험을 진행하는 함수
+     * @param args 매개변수(입력)
+     * @return 반환값 없음
      */
     public static void main(String[] args) {
         SipCall sipCall = new SipCall("myself", "127.0.0.1", 5070, "udp");
