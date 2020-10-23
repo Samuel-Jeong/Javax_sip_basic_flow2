@@ -64,8 +64,6 @@ public class ResponseManager {
 
         Request request = requestEvent.getRequest();
         try {
-            logger.debug("@ Request :\n{}", request);
-
             // Get Or New Dialog
             Dialog dialog = SipCall.getDialogFromRequestEvent(requestEvent, serverTransaction);
             if (dialog == null) throw new NullPointerException("Fail to create Dialog");
@@ -169,7 +167,6 @@ public class ResponseManager {
             // Get Request & Method Name
             Request request = serverTransaction.getRequest();
             methodName = serverTransaction.getRequest().getMethod();
-            logger.debug("@ Request : \n{}", request);
 
             // New Timeout Response
             Response response = messageFactory.createResponse(Response.REQUEST_TIMEOUT, request);
@@ -198,9 +195,6 @@ public class ResponseManager {
         if (request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
 
         try {
-            // Get Request
-            logger.debug("@ Request : \n{}", request);
-
             // New Response
             Response response = messageFactory.createResponse(responseType, request);
             if (response == null) throw new NullPointerException("Fail to create new response");
@@ -329,7 +323,6 @@ public class ResponseManager {
 
         try {
             // New 1xx Response
-            logger.debug("@ Request : \n{}", request);
             Response response = messageFactory.createResponse(statusCode, request);
             if (response == null) throw new NullPointerException("Fail to create new response");
 

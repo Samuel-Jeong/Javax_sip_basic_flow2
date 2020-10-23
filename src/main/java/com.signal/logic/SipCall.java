@@ -125,7 +125,8 @@ public class SipCall implements SipListener {
      * @param transactionHashMap 트랜잭션 관리 해쉬 맵(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    public static void setTransactionHashMap(final HashMap<CallIdHeader, Transaction> transactionHashMap) {
+    private static void setTransactionHashMap(final HashMap<CallIdHeader, Transaction> transactionHashMap) {
+        if(transactionHashMap == null) throw new NullPointerException("Parameter Error");
         SipCall.transactionHashMap = transactionHashMap;
     }
 
@@ -203,7 +204,8 @@ public class SipCall implements SipListener {
      * @param dialogHashMap 다이얼로그 관리 해쉬 맵(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    public static void setDialogHashMap(final HashMap<CallIdHeader, Dialog> dialogHashMap) {
+    private static void setDialogHashMap(final HashMap<CallIdHeader, Dialog> dialogHashMap) {
+        if(dialogHashMap == null) throw new NullPointerException("Parameter Error");
         SipCall.dialogHashMap = dialogHashMap;
     }
 
@@ -215,7 +217,9 @@ public class SipCall implements SipListener {
      * @return 반환값 없음
      */
     public static void addDialogHashMap(final CallIdHeader callIdHeader, final Dialog dialog) {
-        if (callIdHeader != null && dialog != null) dialogHashMap.put(callIdHeader, dialog);
+        if (callIdHeader != null && dialog != null) {
+            dialogHashMap.put(callIdHeader, dialog);
+        }
     }
 
     /**
@@ -372,12 +376,11 @@ public class SipCall implements SipListener {
 
         // Get Request
         Request request = requestEvent.getRequest();
+        logger.debug("@ Request : \n{}", request);
 
         // Get Server Transaction
         ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
         if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
-
-        logger.debug("# Request : \n{}", request);
 
         // 요청 유형에 따라 처리
         switch (request.getMethod()) {
@@ -408,6 +411,7 @@ public class SipCall implements SipListener {
                 if(dialogHashMap.size() > 0) {
                     ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.ACCEPTED);
                 }
+                break;
             }
             default: {
                 logger.debug("Unknown Request!!");

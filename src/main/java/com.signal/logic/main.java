@@ -6,7 +6,7 @@ package com.signal.logic;
  */
 public class main {
     /**
-     * @fn public static void main(String[] args) throws SipException
+     * @fn public static void main(String[] args)
      * @brief SIP 기본 호 시험을 진행하는 함수
      * @param args 매개변수(입력)
      * @return 반환값 없음
