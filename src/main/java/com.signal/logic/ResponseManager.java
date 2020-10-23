@@ -74,19 +74,20 @@ public class ResponseManager {
             SipCall.addTransactionHashMap(callIdHeader, serverTransaction);
 
             // 100 Trying
-            ResponseManager.getInstance().respondWith1xx(request, serverTransaction, messageFactory, Response.TRYING);
+            ResponseManager.getInstance().respondWith1xxToInvite(request, serverTransaction, messageFactory, Response.TRYING);
 
             // 180 Ringing
-            ResponseManager.getInstance().respondWith1xx(request, serverTransaction, messageFactory, Response.RINGING);
+            ResponseManager.getInstance().respondWith1xxToInvite(request, serverTransaction, messageFactory, Response.RINGING);
 
             // 200 OK
-            ResponseManager.getInstance().respondWith200(request, serverTransaction, messageFactory, headerFactory, addressFactory);
+            ResponseManager.getInstance().respondWith200ToInvite(request, serverTransaction, messageFactory, headerFactory, addressFactory);
 
             // Add Dialog & Remove Transaction
-            logger.debug("Invite Call-ID : {}", callIdHeader);
-            logger.debug("### Initial Dialog Hash Map Size : {}", SipCall.getDialogHashMap().size());
             SipCall.removeTransactionHashMap(callIdHeader);
             SipCall.addDialogHashMap(callIdHeader, dialog);
+
+            logger.debug("Invite Call-ID : {}", callIdHeader);
+            logger.debug("### Initial Dialog Hash Map Size : {}", SipCall.getDialogHashMap().size());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -106,10 +107,11 @@ public class ResponseManager {
             CallIdHeader callIdHeader = requestEvent.getDialog().getCallId();
             logger.debug("Bye Call-ID : {}", callIdHeader);
 
+            // Get Request
             Request request = requestEvent.getRequest();
             Response response;
 
-            // Find Dialog
+            // Find Dialog & New Response
             if (SipCall.findDialogHashMap(callIdHeader)) { // 481 Call/Transaction Does Not Exist
                 response = messageFactory.createResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST, request);
                 logger.debug("Call/Transaction Does Not Exist");
@@ -118,11 +120,13 @@ public class ResponseManager {
             }
             if (response == null) throw new NullPointerException("Fail to create new response");
 
-            // Get/New Server Transaction
+            // Get Server Transaction
             ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
+
+            // Send
             serverTransaction.sendResponse(response);
 
-            // Remove Transaction
+            // Remove Transaction & Dialog
             SipCall.removeTransactionHashMap(callIdHeader);
             SipCall.removeDialogHashMap(callIdHeader);
             logger.debug("@ Response : \n{}", response);
@@ -133,7 +137,7 @@ public class ResponseManager {
 
     /**
      * @fn public String respondToTimeout(final TimeoutEvent timeoutEvent, final MessageFactory messageFactory)
-     * @brief 시간 초과 이벤트에 응답하는 함수
+     * @brief 시간 초과 이벤트에 응답하는 함수(서버 트랜잭션에서 발생하는 시간 초과)
      * @param timeoutEvent   시간 초과 이벤트(입력, 읽기 전용)
      * @param messageFactory SIP 메시지 인터페이스(입력, 읽기 전용)
      * @return 시간 초과가 발생한 요청의 Method 이름
@@ -148,7 +152,7 @@ public class ResponseManager {
             ServerTransaction serverTransaction = timeoutEvent.getServerTransaction();
             if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
 
-            // Get Request
+            // Get Request & Method Name
             Request request = serverTransaction.getRequest();
             methodName = serverTransaction.getRequest().getMethod();
             logger.debug("@ Request : \n{}", request);
@@ -168,26 +172,24 @@ public class ResponseManager {
     }
 
     /**
-     * @fn public void respondWith200ToNonInviteReq(final RequestEvent requestEvent, final MessageFactory messageFactory)
-     * @brief Non-invite 요청에 200 OK 로 응답하는 함수
-     * @param requestEvent   시간 초과 이벤트(입력, 읽기 전용)
-     * @param messageFactory SIP 메시지 인터페이스(입력, 읽기 전용)
+     * @fn public void respondWith2xxToNonInviteReq(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType)
+     * @brief Non-invite 요청에 2xx 로 응답하는 함수
+     * @param request           요청(입력, 읽기 전용)
+     * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
+     * @param messageFactory    SIP 메시지 인터페이스(입력, 읽기 전용)
+     * @param responseType      응답 유형(입력)
      * @return 반환값 없음
      */
-    public void respondWith200ToNonInviteReq(final RequestEvent requestEvent, final MessageFactory messageFactory) {
-        if (requestEvent == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+    public void respondWith2xxToNonInviteReq(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType) {
+        if (request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
 
         try {
             // Get Request
-            Request request = requestEvent.getRequest();
             logger.debug("@ Request : \n{}", request);
 
-            // New 200 OK Response
-            Response response = messageFactory.createResponse(Response.OK, request);
+            // New Response
+            Response response = messageFactory.createResponse(responseType, request);
             if (response == null) throw new NullPointerException("Fail to create new response");
-
-            // Get/New Server Transaction
-            ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
 
             // Send
             serverTransaction.sendResponse(response);
@@ -236,14 +238,13 @@ public class ResponseManager {
     /**
      * @fn public void respondWith4xx(final RequestEvent requestEvent, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType)
      * @brief 지정한 요청을 4xx 응답으로 처리하는 함수
-     * @param requestEvent      요청 이벤트(입력, 읽기 전용)
      * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
      * @param messageFactory    SIP 메시지 인터페이스(입력, 읽기 전용)
      * @param responseType      응답 유형(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    public void respondWith4xx(final RequestEvent requestEvent, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType) {
-        if (requestEvent == null || serverTransaction == null || messageFactory == null)
+    public void respondWith4xx(final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType) {
+        if (serverTransaction == null || messageFactory == null)
             throw new NullPointerException("Parameter Error");
 
         try {
@@ -269,17 +270,19 @@ public class ResponseManager {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * @fn private void respondWith1xx(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int statusCode)
-     * @brief 지정한 요청을 1xx 응답으로 처리하는 함수
+     * @fn private void respondWith1xxToInvite(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int statusCode)
+     * @brief Invite 요청을 1xx 응답으로 처리하는 함수
      * @param request           요청(입력, 읽기 전용)
      * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
      * @param messageFactory    SIP 메시지 인터페이스(입력, 읽기 전용)
      * @param statusCode        응답 코드(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    private void respondWith1xx(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int statusCode) {
+    private void respondWith1xxToInvite(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int statusCode) {
         if (request == null || serverTransaction == null || messageFactory == null)
             throw new NullPointerException("Parameter Error");
+
+        if(!request.getMethod().equals(Request.INVITE)) return;
 
         try {
             // New 1xx Response
@@ -296,8 +299,8 @@ public class ResponseManager {
     }
 
     /**
-     * @fn private void respondWith200(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final HeaderFactory headerFactory, final AddressFactory addressFactory)
-     * @brief 지정한 요청을 200 OK 응답으로 처리하는 함수
+     * @fn private void respondWith200ToInvite(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final HeaderFactory headerFactory, final AddressFactory addressFactory)
+     * @brief Invite 요청을 200 OK 응답으로 처리하는 함수
      * @param request           요청(입력, 읽기 전용)
      * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
      * @param messageFactory    SIP 메시지 인터페이스(입력, 읽기 전용)
@@ -305,9 +308,11 @@ public class ResponseManager {
      * @param addressFactory    SIP 메시지 주소 관리 인터페이스(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    private void respondWith200(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final HeaderFactory headerFactory, final AddressFactory addressFactory) {
+    private void respondWith200ToInvite(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final HeaderFactory headerFactory, final AddressFactory addressFactory) {
         if (request == null || serverTransaction == null || messageFactory == null ||
                 headerFactory == null || addressFactory == null) throw new NullPointerException("Parameter Error");
+
+        if(!request.getMethod().equals(Request.INVITE)) return;
 
         try {
             // Make SDP

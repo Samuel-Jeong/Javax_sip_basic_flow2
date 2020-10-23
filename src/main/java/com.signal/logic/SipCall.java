@@ -21,9 +21,9 @@ import java.util.Properties;
 public class SipCall implements SipListener {
     /* 출력 레벨에 따라 지정한 데이터를 표준 출력 */
     private static final Logger logger = LoggerFactory.getLogger(SipCall.class);
-    /* 트랜잭션 관리 해쉬 맵 */
+    /* 트랜잭션 관리 해쉬 맵, 현재 설립된 다이얼로그에서 처리 중인 트랜잭션에 대한 정보를 관리 */
     private static HashMap<CallIdHeader, Transaction> transactionHashMap;
-    /* 다이얼로그 관리 해쉬 맵 */
+    /* 다이얼로그 관리 해쉬 맵, 현재 설립된 다이얼로그에 대한 정보를 관리 */
     private static HashMap<CallIdHeader, Dialog> dialogHashMap;
     /* 사용자 이름 */
     private final String userName;
@@ -71,7 +71,7 @@ public class SipCall implements SipListener {
         properties.setProperty("gov.nist.javax.sip.DEBUG_LOG", "debug.log");
         properties.setProperty("gov.nist.javax.sip.SERVER_LOG", "debug.log");
 
-        // SipStack
+        // New SipStack
         try {
             sipStack = sipFactory.createSipStack(properties);
         } catch (Exception e) {
@@ -83,24 +83,25 @@ public class SipCall implements SipListener {
         }
 
         try {
-            // SipFactory
+            // New SipFactory
             this.headerFactory = sipFactory.createHeaderFactory();
             this.addressFactory = sipFactory.createAddressFactory();
             this.messageFactory = sipFactory.createMessageFactory();
 
-            // SipProvider
+            // New ListeningPoint & SipProvider
             ListeningPoint listeningPoint = sipStack.createListeningPoint(ip, port, protocol);
             this.sipProvider = sipStack.createSipProvider(listeningPoint);
             this.sipProvider.addSipListener(this);
             this.sipProvider.setAutomaticDialogSupportEnabled(false);
 
+            // Start SipStack
             sipStack.start();
 
-            // Transaction Hash Map
+            // New Transaction Hash Map
             HashMap<CallIdHeader, Transaction> _transactionHashMap = new HashMap<>();
             SipCall.setTransactionHashMap(_transactionHashMap);
 
-            // Dialog Hash Map
+            // New Dialog Hash Map
             HashMap<CallIdHeader, Dialog> _dialogHashMap = new HashMap<>();
             SipCall.setDialogHashMap(_dialogHashMap);
         } catch (Exception e) {
@@ -165,7 +166,7 @@ public class SipCall implements SipListener {
      * @fn public static Request searchRequestFromTransactionHashMap(final CallIdHeader callIdHeader, final String requestType)
      * @brief 트랜잭션 관 해쉬 맵에서 지정한 Call-ID(키)에 해당하는 트랜잭션(밸류)를 검색하여 해당 트랜잭션에 속한 요청을 반환하는 함수
      * @param callIdHeader Call-ID 헤더(입력, 읽기 전용)
-     * @param requestType  요청 유형(입력, 읽기 전)용
+     * @param requestType  요청 유형(입력, 읽기 전용)
      * @return 요청
      */
     public static Request searchRequestFromTransactionHashMap(final CallIdHeader callIdHeader, final String requestType) {
@@ -243,7 +244,7 @@ public class SipCall implements SipListener {
     /**
      * @fn public static String makeSdp()
      * @brief SDP 메시지를 생성해주는 함수
-     * @return SDP 메시지
+     * @return SDP 메시지 문자열
      */
     public static String makeSdp() {
         String sdp = "";
@@ -271,6 +272,7 @@ public class SipCall implements SipListener {
     public static ServerTransaction getServerTransactionFromRequestEvent(final RequestEvent requestEvent) {
         if (requestEvent == null) throw new NullPointerException("Parameter Error");
 
+        // 요청 이벤트에서 서버 트랜잭션을 얻어서 반환한다. 없으면 새로 생성해서 반환한다.
         ServerTransaction serverTransaction = requestEvent.getServerTransaction();
         if (serverTransaction == null) {
             try {
@@ -293,7 +295,7 @@ public class SipCall implements SipListener {
 
     /**
      * @fn public static Dialog getDialogFromRequestEvent(final RequestEvent requestEvent, final ServerTransaction serverTransaction)
-     * @brief 요청 이벤트로와 서버 트랜잭션으부터 다이얼로그를 반환하는 함수
+     * @brief 요청 이벤트로와 서버 트랜잭션으로부터 다이얼로그를 반환하는 함수
      * 기존에 다이얼로그가 존재하지 않으면 새로운 다이얼로그를 생성해서 반환
      * @param requestEvent      요청 이벤트(입력, 읽기 전용)
      * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
@@ -302,6 +304,7 @@ public class SipCall implements SipListener {
     public static Dialog getDialogFromRequestEvent(final RequestEvent requestEvent, final ServerTransaction serverTransaction) {
         if (requestEvent == null || serverTransaction == null) throw new NullPointerException("Parameter Error");
 
+        // 요청 이벤트에서 다이얼로그를 얻어서 반환한다. 없으면 새로 생성해서 반환한다.
         Dialog dialog = requestEvent.getDialog();
         if (dialog == null) {
             SipProvider sipProvider = (SipProvider) requestEvent.getSource();
@@ -366,31 +369,44 @@ public class SipCall implements SipListener {
     public void processRequest(final RequestEvent requestEvent) {
         if (requestEvent == null) throw new NullPointerException("Parameter Error");
 
+        // Get Request
+        Request request = requestEvent.getRequest();
+
+        // Get Server Transaction
         ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
         if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
 
+        // Message 요청이면 202 Accepted 응답으로 처리
+        if(request.getMethod().equals(Request.MESSAGE) && dialogHashMap.size() > 0) {
+            ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.ACCEPTED);
+            return;
+        }
+
+        // Get Dialog
         Dialog dialog = SipCall.getDialogFromRequestEvent(requestEvent, serverTransaction);
+        if (dialog == null) throw new NullPointerException("Fail to get dialog");
+
+        // Get Call-ID Header
         CallIdHeader callIdHeader = dialog.getCallId();
         if (callIdHeader == null) throw new NullPointerException("Fail to get Call-ID");
 
-        Request request = requestEvent.getRequest();
         logger.debug("(Before) Transaction Hash Map Size : {}", SipCall.getTransactionHashMap().size());
-
         logger.debug("# Request : \n{}", request);
 
+        // 요청 유형에 따라 처리
         switch (request.getMethod()) {
             case Request.INVITE: {
                 // 기존에 Invite 가 존재하면 새로운 Invite 에 대해 491 Request Pending
                 if (searchRequestFromTransactionHashMap(callIdHeader, Request.INVITE) != null) {
                     logger.debug("491 Request Pending Response is sent");
-                    ResponseManager.getInstance().respondWith4xx(requestEvent, serverTransaction, messageFactory, Response.REQUEST_PENDING);
+                    ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.REQUEST_PENDING);
                     break;
                 }
 
                 // 기존에 Session 이 진행 중이면 새로운 Invite 에 대해 486 Busy Here -> Dialog 한 번에 하나만 허용
                 if (dialogHashMap.size() > 0) {
                     logger.debug("486 Busy Here Response is sent");
-                    ResponseManager.getInstance().respondWith4xx(requestEvent, serverTransaction, messageFactory, Response.BUSY_HERE);
+                    ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.BUSY_HERE);
                     break;
                 }
 
@@ -421,20 +437,16 @@ public class SipCall implements SipListener {
                     }
                     // 없으면 존재하지 않으면 Cancel 에 대해 481 Call/Transaction Does Not Exist
                     else {
-                        ResponseManager.getInstance().respondWith4xx(requestEvent, serverTransaction, messageFactory, Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
+                        ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
                         break;
                     }
 
                     // Cancel 에 대해 200 OK 응답
-                    ResponseManager.getInstance().respondWith200ToNonInviteReq(requestEvent, messageFactory);
+                    ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.OK);
                     break;
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
-            }
-            case Request.MESSAGE: {
-                ResponseManager.getInstance().respondWith200ToNonInviteReq(requestEvent, messageFactory);
-                break;
             }
             default: {
                 logger.debug("Unknown Request!!");
@@ -456,9 +468,11 @@ public class SipCall implements SipListener {
     public void processResponse(final ResponseEvent responseEvent) {
         if (responseEvent == null) throw new NullPointerException("Parameter Error");
 
+        // Get Response
         Response response = responseEvent.getResponse();
         int responseCode = response.getStatusCode();
 
+        // 응답 유형에 따라 처리
         switch (responseCode) {
             case 100:
             case 180:
@@ -467,15 +481,17 @@ public class SipCall implements SipListener {
                 // Get Dialog
                 Dialog dialog = responseEvent.getClientTransaction().getDialog();
                 try {
+                    // Get Call-ID Header
                     CallIdHeader callIdHeader = dialog.getCallId();
                     SipCall.removeTransactionHashMap(callIdHeader);
 
                     String methodName = responseEvent.getClientTransaction().getRequest().getMethod();
 
+                    // 200 OK 응답일 때 Method 가 Invite 이면 ACK 전송
                     if (methodName.equals(Request.INVITE)) {
                         // New ACK Request
                         Request request = dialog.createAck(((CSeqHeader) response.getHeader("CSeq")).getSeqNumber());
-                        logger.debug("$$$ CSeq : {}", ((CSeqHeader) response.getHeader("CSeq")).getSeqNumber());
+                        if(request == null) throw new NullPointerException("Fail to create ACK Request");
 
                         // Send
                         dialog.sendAck(request);
@@ -485,6 +501,7 @@ public class SipCall implements SipListener {
                         break;
                     }
 
+                    // Method 가 Bye 이면 프로그램 종료
                     if (methodName.equals(Request.BYE)) {
                         SipCall.removeDialogHashMap(callIdHeader);
                         logger.debug("### Final Dialog Hash Map Size : {}", dialogHashMap.size());
@@ -497,7 +514,6 @@ public class SipCall implements SipListener {
             }
             default: {
                 logger.debug("Unknown code : {}", responseCode);
-                break;
             }
         }
     }
@@ -519,13 +535,16 @@ public class SipCall implements SipListener {
             logger.debug("In the Server transaction");
             methodName = ResponseManager.getInstance().respondToTimeout(timeoutEvent, messageFactory);
         } else { // 요청을 보내는 트랜잭션
+            // Get Client Transaction
             logger.debug("In the Client transaction");
             ClientTransaction clientTransaction = timeoutEvent.getClientTransaction();
             methodName = clientTransaction.getRequest().getMethod();
 
+            // Get State Name
             String stateName = clientTransaction.getState().toString();
             logger.debug("State : {}", stateName);
 
+            // Completed 이전 State 이면 현재 트랜잭션을 취소한다.
             if (stateName.equals("Calling") || stateName.equals("Trying") || stateName.equals("Proceeding")) {
                 try {
                     clientTransaction.createCancel();
@@ -534,6 +553,9 @@ public class SipCall implements SipListener {
                     e.printStackTrace();
                 }
             }
+
+            SipCall.removeTransactionHashMap(clientTransaction.getDialog().getCallId());
+            logger.debug("(After) Transaction Hash Map Size : {}", transactionHashMap.size());
         }
 
         if (methodName != null) {
@@ -556,9 +578,11 @@ public class SipCall implements SipListener {
         logger.debug("Transport : {}", ioExceptionEvent.getTransport());
         logger.debug("Port : {}", ioExceptionEvent.getPort());
 
+        // Get SipProvider
         SipProvider sipProvider = (SipProvider) ioExceptionEvent.getSource();
         if (sipProvider == null) throw new NullPointerException("Fail to get SIP Provider");
 
+        // Remove All ListeningPoints
         try {
             ListeningPoint[] listeningPoints = sipProvider.getListeningPoints();
             for (ListeningPoint lp : listeningPoints) {
@@ -569,7 +593,10 @@ public class SipCall implements SipListener {
             e.printStackTrace();
         }
 
+        // Stop SipStack
         sipProvider.getSipStack().stop();
+
+        // 프로그램 종료
         System.exit(0);
     }
 

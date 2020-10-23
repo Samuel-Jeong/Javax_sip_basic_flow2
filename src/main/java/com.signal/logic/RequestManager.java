@@ -114,7 +114,7 @@ public class RequestManager {
             Dialog dialog = sipCall.getSipProvider().getNewDialog(clientTransaction);
             if (dialog == null) throw new NullPointerException("Fail to create Dialog");
 
-            // Add Transaction & Dialog
+            // Add Transaction
             logger.debug("Invite Call-ID : {}", dialog.getCallId());
             SipCall.addTransactionHashMap(dialog.getCallId(), clientTransaction);
 
@@ -160,7 +160,6 @@ public class RequestManager {
             dialog.sendRequest(clientTransaction);
             SipCall.addTransactionHashMap(dialog.getCallId(), clientTransaction);
 
-            // Remove Dialog & Transaction
             logger.debug("Bye Call-ID : {}", callIdHeader);
             logger.debug("@ Request : \n{}", byeRequest);
         } catch (Exception e) {
@@ -175,7 +174,7 @@ public class RequestManager {
     /**
      * @fn private String makeTag()
      * @brief Tag 문자열을 생성하는 함수
-     * @return Tag 문자열(최대 길이:256)
+     * @return Tag 문자열(최대 길이:MAX_TAG_NUMBER)
      */
     private String makeTag() {
         StringBuilder tag = new StringBuilder();
