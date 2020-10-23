@@ -16,7 +16,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 /**
- * @class public class com.signal.logic.SipCall implements SipListener
+ * @class public class SipCall implements SipListener
  * @brief SIP 호 정보 관리 클래스
  */
 public class SipCall implements SipListener {
@@ -50,7 +50,7 @@ public class SipCall implements SipListener {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * @fn public com.signal.logic.SipCall(final String userName, final String ip, int port, final String protocol)
+     * @fn public SipCall(final String userName, final String ip, int port, final String protocol)
      * @brief SIP 호 정보 관리 객체를 초기화하는 함수
      * @param userName SIP URI 에서 사용될 사용자 이름(입력, 읽기 전용)
      * @param ip       SIP URI 에서 사용될 IP 주소(입력, 읽기 전용)
@@ -377,7 +377,6 @@ public class SipCall implements SipListener {
         ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
         if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
 
-        logger.debug("(Before) Transaction Hash Map Size : {}", SipCall.getTransactionHashMap().size());
         logger.debug("# Request : \n{}", request);
 
         // 요청 유형에 따라 처리
@@ -393,7 +392,7 @@ public class SipCall implements SipListener {
 //                    e.printStackTrace();
 //                }
 //
-//                com.signal.logic.RequestManager.getInstance().requestBye(requestEvent);
+//                RequestManager.getInstance().requestBye(requestEvent);
                 break;
             }
             case Request.BYE: {
@@ -415,8 +414,6 @@ public class SipCall implements SipListener {
                 break;
             }
         }
-
-        logger.debug("(After) Transaction Hash Map Size : {}", transactionHashMap.size());
     }
 
     /**
@@ -432,6 +429,7 @@ public class SipCall implements SipListener {
         // Get Response
         Response response = responseEvent.getResponse();
         int responseCode = response.getStatusCode();
+        logger.debug("@ Response : \n{}", response);
 
         // 응답 유형에 따라 처리
         switch (responseCode) {
@@ -458,14 +456,12 @@ public class SipCall implements SipListener {
                         dialog.sendAck(request);
 
                         SipCall.addDialogHashMap(callIdHeader, dialog);
-                        logger.debug("### Initial Dialog Hash Map Size : {}", dialogHashMap.size());
                         break;
                     }
 
                     // Method 가 Bye 이면 프로그램 종료
                     if (methodName.equals(Request.BYE)) {
                         SipCall.removeDialogHashMap(callIdHeader);
-                        logger.debug("### Final Dialog Hash Map Size : {}", dialogHashMap.size());
                         System.exit(0);
                     }
                 } catch (InvalidArgumentException | SipException e) {
@@ -516,7 +512,6 @@ public class SipCall implements SipListener {
             }
 
             SipCall.removeTransactionHashMap(clientTransaction.getDialog().getCallId());
-            logger.debug("(After) Transaction Hash Map Size : {}", transactionHashMap.size());
         }
 
         if (methodName != null) {

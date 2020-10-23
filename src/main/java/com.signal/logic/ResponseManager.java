@@ -15,7 +15,7 @@ import javax.sip.message.Request;
 import javax.sip.message.Response;
 
 /**
- * @class public class com.signal.logic.ResponseManager
+ * @class public class ResponseManager
  * @brief 응답 처리 클래스
  */
 public class ResponseManager {
@@ -25,7 +25,7 @@ public class ResponseManager {
     public static ResponseManager responseManager = null;
 
     /**
-     * @fn private com.signal.logic.ResponseManager()
+     * @fn private ResponseManager()
      * @brief 응답 관리 매니저 객체를 초기화하는 함수
      */
     private ResponseManager() {
@@ -36,7 +36,7 @@ public class ResponseManager {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * @fn public static com.signal.logic.ResponseManager getInstance()
+     * @fn public static ResponseManager getInstance()
      * @brief 응답 관리 매니저의 싱글턴 인스턴스를 반환하는 함수
      * @return 응답 관리 매니저
      */
@@ -46,7 +46,7 @@ public class ResponseManager {
     }
 
     /**
-     * @fn public void respondToInvite(final RequestEvent requestEvent, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final AddressFactory addressFactory, final HeaderFactory headerFactory, final SipProvider SipProvider, int port, final com.signal.logic.SipCall sipCall)
+     * @fn public void respondToInvite(final RequestEvent requestEvent, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final AddressFactory addressFactory, final HeaderFactory headerFactory, final SipProvider SipProvider, int port, final SipCall sipCall)
      * @brief Invite 요청에 응답하는 함수
      * @param requestEvent      요청 이벤트(입력, 읽기 전용)
      * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
@@ -104,7 +104,6 @@ public class ResponseManager {
             SipCall.addDialogHashMap(callIdHeader, dialog);
 
             logger.debug("Invite Call-ID : {}", callIdHeader);
-            logger.debug("### Initial Dialog Hash Map Size : {}", SipCall.getDialogHashMap().size());
         } catch (Exception e) {
             e.printStackTrace();
         }

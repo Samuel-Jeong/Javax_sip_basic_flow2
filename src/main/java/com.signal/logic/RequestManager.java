@@ -14,7 +14,7 @@ import java.util.ArrayList;
 import java.util.Random;
 
 /**
- * @class public class com.signal.logic.RequestManager
+ * @class public class RequestManager
  * @brief 요청 처리 클래스
  */
 public class RequestManager {
@@ -26,7 +26,7 @@ public class RequestManager {
     private static RequestManager RequestManager = null;
 
     /**
-     * @fn private com.signal.logic.RequestManager()
+     * @fn private RequestManager()
      * @brief 요청 관리 매니저 객체를 초기화하는 함수
      */
     private RequestManager() {
@@ -37,7 +37,7 @@ public class RequestManager {
     ////////////////////////////////////////////////////////////////////////////////////////
 
     /**
-     * @fn public static com.signal.logic.RequestManager getInstance()
+     * @fn public static RequestManager getInstance()
      * @brief 요청 관리 매니저의 싱글턴 인스턴스를 반환하는 함수
      * @return 요청 관리 매니저
      */
@@ -47,7 +47,7 @@ public class RequestManager {
     }
 
     /**
-     * @fn public void requestInvite(final com.signal.logic.SipCall sipCall, final String toURI)
+     * @fn public void requestInvite(final SipCall sipCall, final String toURI)
      * @brief Invite 요청을 보내는 함수
      * @param sipCall SIP 호 정보 관리 클래스(입력, 읽기 전용)
      * @param toURI   요청을 수신하는 URI(입력, 읽기 전용)
@@ -122,8 +122,6 @@ public class RequestManager {
             clientTransaction.sendRequest();
             logger.debug("@ Request :\n{}", request);
 
-            logger.info("(Before) Transaction Hash Map Size : {}", SipCall.getTransactionHashMap().size());
-            logger.info("(Before) Dialog Hash Map Size : {}", SipCall.getDialogHashMap().size());
         } catch (Exception e) {
             e.printStackTrace();
         }
