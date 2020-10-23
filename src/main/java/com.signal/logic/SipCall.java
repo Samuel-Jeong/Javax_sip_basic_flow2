@@ -376,40 +376,12 @@ public class SipCall implements SipListener {
         ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
         if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
 
-        // Message 요청이면 202 Accepted 응답으로 처리
-        if(request.getMethod().equals(Request.MESSAGE) && dialogHashMap.size() > 0) {
-            ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.ACCEPTED);
-            return;
-        }
-
-        // Get Dialog
-        Dialog dialog = SipCall.getDialogFromRequestEvent(requestEvent, serverTransaction);
-        if (dialog == null) throw new NullPointerException("Fail to get dialog");
-
-        // Get Call-ID Header
-        CallIdHeader callIdHeader = dialog.getCallId();
-        if (callIdHeader == null) throw new NullPointerException("Fail to get Call-ID");
-
         logger.debug("(Before) Transaction Hash Map Size : {}", SipCall.getTransactionHashMap().size());
         logger.debug("# Request : \n{}", request);
 
         // 요청 유형에 따라 처리
         switch (request.getMethod()) {
             case Request.INVITE: {
-                // 기존에 Invite 가 존재하면 새로운 Invite 에 대해 491 Request Pending
-                if (searchRequestFromTransactionHashMap(callIdHeader, Request.INVITE) != null) {
-                    logger.debug("491 Request Pending Response is sent");
-                    ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.REQUEST_PENDING);
-                    break;
-                }
-
-                // 기존에 Session 이 진행 중이면 새로운 Invite 에 대해 486 Busy Here -> Dialog 한 번에 하나만 허용
-                if (dialogHashMap.size() > 0) {
-                    logger.debug("486 Busy Here Response is sent");
-                    ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.BUSY_HERE);
-                    break;
-                }
-
                 ResponseManager.getInstance().respondToInvite(requestEvent, serverTransaction, messageFactory, addressFactory, headerFactory, sipProvider, port, this);
                 break;
             }
@@ -424,28 +396,17 @@ public class SipCall implements SipListener {
                 break;
             }
             case Request.BYE: {
-                SipCall.addTransactionHashMap(callIdHeader, serverTransaction);
                 ResponseManager.getInstance().respondToBye(requestEvent, messageFactory);
                 break;
             }
             case Request.CANCEL: {
-                try {
-                    // 기존에 Invite 가 존재하면 존재하는 Invite 에 대해 487 Request Terminated
-                    Request oldRequest;
-                    if ((oldRequest = searchRequestFromTransactionHashMap(callIdHeader, Request.INVITE)) != null) {
-                        ResponseManager.getInstance().respondWith487ToInviteByCancel(oldRequest, callIdHeader, messageFactory);
-                    }
-                    // 없으면 존재하지 않으면 Cancel 에 대해 481 Call/Transaction Does Not Exist
-                    else {
-                        ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
-                        break;
-                    }
-
-                    // Cancel 에 대해 200 OK 응답
-                    ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.OK);
-                    break;
-                } catch (Exception e) {
-                    e.printStackTrace();
+                ResponseManager.getInstance().respondToCancel(request, serverTransaction, messageFactory);
+                break;
+            }
+            case Request.MESSAGE:{
+                // Message 요청이고 현재 다이얼로그가 생성되어 있으면, 202 Accepted 응답으로 처리
+                if(dialogHashMap.size() > 0) {
+                    ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.ACCEPTED);
                 }
             }
             default: {
@@ -454,7 +415,6 @@ public class SipCall implements SipListener {
             }
         }
 
-        SipCall.removeTransactionHashMap(callIdHeader);
         logger.debug("(After) Transaction Hash Map Size : {}", transactionHashMap.size());
     }
 

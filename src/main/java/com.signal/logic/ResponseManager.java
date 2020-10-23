@@ -1,5 +1,6 @@
 package com.signal.logic;
 
+import gov.nist.javax.sip.header.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,7 +38,7 @@ public class ResponseManager {
 
     /**
      * @fn public static com.signal.logic.ResponseManager getInstance()
-     * @brief 응답 관리 매니저의 인스턴스를 반환하는 함수
+     * @brief 응답 관리 매니저의 싱글턴 인스턴스를 반환하는 함수
      * @return 응답 관리 매니저
      */
     public static ResponseManager getInstance() {
@@ -66,11 +67,28 @@ public class ResponseManager {
         try {
             logger.debug("@ Request :\n{}", request);
 
-            // New Dialog & Transaction
-            Dialog dialog = sipCall.getSipProvider().getNewDialog(serverTransaction);
+            // Get Or New Dialog
+            Dialog dialog = SipCall.getDialogFromRequestEvent(requestEvent, serverTransaction);
             if (dialog == null) throw new NullPointerException("Fail to create Dialog");
 
+            // Get Call-ID Header from New Dialog
             CallIdHeader callIdHeader = dialog.getCallId();
+
+            // 기존에 Invite 가 존재하면 새로운 Invite 에 대해 491 Request Pending
+            if (SipCall.searchRequestFromTransactionHashMap(callIdHeader, Request.INVITE) != null) {
+                logger.debug("491 Request Pending Response is sent");
+                ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.REQUEST_PENDING);
+                return;
+            }
+
+            // 기존에 Session 이 진행 중이면 새로운 Invite 에 대해 486 Busy Here -> Dialog 한 번에 하나만 허용
+            if (SipCall.getDialogHashMap().size() > 0) {
+                logger.debug("486 Busy Here Response is sent");
+                ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.BUSY_HERE);
+                return;
+            }
+
+            // Add Transaction
             SipCall.addTransactionHashMap(callIdHeader, serverTransaction);
 
             // 100 Trying
@@ -122,6 +140,7 @@ public class ResponseManager {
 
             // Get Server Transaction
             ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
+            SipCall.addTransactionHashMap(callIdHeader, serverTransaction);
 
             // Send
             serverTransaction.sendResponse(response);
@@ -200,14 +219,43 @@ public class ResponseManager {
     }
 
     /**
-     * @fn public void respondWith487ToInviteByCancel(final Request request, final CallIdHeader callIdHeader, final MessageFactory messageFactory)
+     * @fn public void respondToCancel(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory)
+     * @brief Cancel 요청을 처리하는 함수
+     * @param request 요청(Cancel, 입력, 읽기 전용)
+     * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
+     * @param messageFactory SIP 메시지 인터페이스(입력, 읽기 전용)
+     * @return 반환값 없음
+     */
+    public void respondToCancel(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory) {
+        if(request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+
+        CallIdHeader callIdHeader = serverTransaction.getDialog().getCallId();
+        if(callIdHeader == null) throw new NullPointerException("Fail to get Call-ID Header");
+
+        // 기존에 Invite 가 존재하면 존재하는 Invite 에 대해 487 Request Terminated
+        Request oldRequest;
+        if ((oldRequest = SipCall.searchRequestFromTransactionHashMap(callIdHeader, Request.INVITE)) != null) {
+            ResponseManager.getInstance().respondWith487ToInviteByCancel(oldRequest, callIdHeader, messageFactory);
+        }
+        // 없으면 존재하지 않으면 Cancel 에 대해 481 Call/Transaction Does Not Exist
+        else {
+            ResponseManager.getInstance().respondWith4xx(serverTransaction, messageFactory, Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST);
+            return;
+        }
+
+        // Cancel 에 대해 200 OK 응답
+        ResponseManager.getInstance().respondWith2xxToNonInviteReq(request, serverTransaction, messageFactory, Response.OK);
+    }
+
+    /**
+     * @fn private void respondWith487ToInviteByCancel(final Request request, final CallIdHeader callIdHeader, final MessageFactory messageFactory)
      * @brief Cancel 요청에 의해 Invite 요청을 487 응답으로 처리하는 함수
      * @param request        Invite 요청(입력, 읽기 전용)
      * @param callIdHeader   현재 진행 중인 다이얼로그의 Call-ID(입력, 읽기 전용)
      * @param messageFactory SIP 메시지 인터페이스(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    public void respondWith487ToInviteByCancel(final Request request, final CallIdHeader callIdHeader, final MessageFactory messageFactory) {
+    private void respondWith487ToInviteByCancel(final Request request, final CallIdHeader callIdHeader, final MessageFactory messageFactory) {
         if (request == null || callIdHeader == null || messageFactory == null)
             throw new NullPointerException("Parameter Error");
 

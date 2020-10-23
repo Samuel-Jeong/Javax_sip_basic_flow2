@@ -38,7 +38,7 @@ public class RequestManager {
 
     /**
      * @fn public static com.signal.logic.RequestManager getInstance()
-     * @brief 요청 관리 매니저의 인스턴스를 반환하는 함수
+     * @brief 요청 관리 매니저의 싱글턴 인스턴스를 반환하는 함수
      * @return 요청 관리 매니저
      */
     public static RequestManager getInstance() {
