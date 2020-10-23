@@ -11,6 +11,7 @@ import javax.sip.header.HeaderFactory;
 import javax.sip.message.MessageFactory;
 import javax.sip.message.Request;
 import javax.sip.message.Response;
+import java.net.PortUnreachableException;
 import java.util.HashMap;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -58,8 +59,8 @@ public class SipCall implements SipListener {
      * @param protocol SIP Stack 에 사용될 프로토콜 이름(입력, 읽기 전용)
      */
     public SipCall(final String userName, final String ip, int port, final String protocol) {
-        if (userName == null || ip == null || port <= 0 || protocol == null)
-            throw new NullPointerException("Parameter Error");
+        if(port <= 0) throw new NullPointerException("Port <= 0");
+        checkObjectNull(null, userName, ip, protocol);
 
         this.userName = userName;
         this.ip = ip;
@@ -126,7 +127,7 @@ public class SipCall implements SipListener {
      * @return 반환값 없음
      */
     private static void setTransactionHashMap(final HashMap<CallIdHeader, Transaction> transactionHashMap) {
-        if(transactionHashMap == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, transactionHashMap);
         SipCall.transactionHashMap = transactionHashMap;
     }
 
@@ -148,7 +149,7 @@ public class SipCall implements SipListener {
      * @return 반환값 없음
      */
     public static void removeTransactionHashMap(final CallIdHeader callIdHeader) {
-        if (callIdHeader == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, callIdHeader);
         if (transactionHashMap.isEmpty()) return;
         transactionHashMap.remove(callIdHeader);
     }
@@ -160,7 +161,7 @@ public class SipCall implements SipListener {
      * @return 트랜잭션
      */
     public static Transaction searchTransactionHashMap(final CallIdHeader callIdHeader) {
-        if (callIdHeader == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, callIdHeader);
         return transactionHashMap.get(callIdHeader);
     }
 
@@ -172,7 +173,7 @@ public class SipCall implements SipListener {
      * @return 요청
      */
     public static Request searchRequestFromTransactionHashMap(final CallIdHeader callIdHeader, final String requestType) {
-        if (callIdHeader == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, callIdHeader);
 
         // 같은 Call-ID 를 가진 Transaction 을 찾는다.
         Transaction transaction = SipCall.searchTransactionHashMap(callIdHeader);
@@ -205,7 +206,7 @@ public class SipCall implements SipListener {
      * @return 반환값 없음
      */
     private static void setDialogHashMap(final HashMap<CallIdHeader, Dialog> dialogHashMap) {
-        if(dialogHashMap == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, dialogHashMap);
         SipCall.dialogHashMap = dialogHashMap;
     }
 
@@ -229,7 +230,7 @@ public class SipCall implements SipListener {
      * @return 반환값 없음
      */
     public static void removeDialogHashMap(final CallIdHeader callIdHeader) {
-        if (callIdHeader == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, callIdHeader);
         if (dialogHashMap.isEmpty()) return;
         dialogHashMap.remove(callIdHeader);
     }
@@ -238,10 +239,10 @@ public class SipCall implements SipListener {
      * @fn public static boolean findDialogHashMap(final CallIdHeader callIdHeader)
      * @brief 다이얼로그 관리 해쉬 맵에서 지정한 Call-ID(키)에 해당하는 트랜잭션(밸류)를 검색하여 존재 여부를 반환하는 함수
      * @param callIdHeader Call-ID 헤더(입력, 읽기 전용)
-     * @return 다이얼로그 존재 여부(boolean)
+     * @return 다이얼로그가 존재하면 true, 아니면 false 반환
      */
     public static boolean findDialogHashMap(CallIdHeader callIdHeader) {
-        if (callIdHeader == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, callIdHeader);
         Dialog dialog = dialogHashMap.get(callIdHeader);
         return dialog == null;
     }
@@ -275,7 +276,7 @@ public class SipCall implements SipListener {
      * @return 서버 트랜잭션
      */
     public static ServerTransaction getServerTransactionFromRequestEvent(final RequestEvent requestEvent) {
-        if (requestEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, requestEvent);
 
         // 요청 이벤트에서 서버 트랜잭션을 얻어서 반환한다. 없으면 새로 생성해서 반환한다.
         ServerTransaction serverTransaction = requestEvent.getServerTransaction();
@@ -283,7 +284,7 @@ public class SipCall implements SipListener {
             try {
                 // Get Request
                 Request request = requestEvent.getRequest();
-                if (request == null) throw new NullPointerException("Fail to get Request");
+                checkObjectNull("Fail to get Request", request);
 
                 // Get Sip Provider
                 SipProvider sipProvider = (SipProvider) requestEvent.getSource();
@@ -307,7 +308,7 @@ public class SipCall implements SipListener {
      * @return 다이얼로그
      */
     public static Dialog getDialogFromRequestEvent(final RequestEvent requestEvent, final ServerTransaction serverTransaction) {
-        if (requestEvent == null || serverTransaction == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, requestEvent, serverTransaction);
 
         // 요청 이벤트에서 다이얼로그를 얻어서 반환한다. 없으면 새로 생성해서 반환한다.
         Dialog dialog = requestEvent.getDialog();
@@ -360,6 +361,22 @@ public class SipCall implements SipListener {
         return port;
     }
 
+    /**
+     * @fn public boolean checkObjectNull(final String _msg, Object... objects)
+     * @brief 객체가 Null 인지 검사하는 함수
+     * @param _msg    예외 발생 시 출력할 문자열(입력, 읽기 전용)
+     * @param objects 객체 가변인자(입력, 읽기 전용)
+     */
+    public static void checkObjectNull(final String _msg, final Object... objects) {
+        String msg = "Parameter Error (Null)";
+        for(Object object : objects) {
+            if(object == null) {
+                if(_msg != null) msg = _msg;
+                throw new NullPointerException(msg);
+            }
+        }
+    }
+
     ////////////////////////////////////////////////////////////////////////////////////////
     /// @ Public Override Functions
     ////////////////////////////////////////////////////////////////////////////////////////
@@ -372,7 +389,7 @@ public class SipCall implements SipListener {
      */
     @Override
     public void processRequest(final RequestEvent requestEvent) {
-        if (requestEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, requestEvent);
 
         // Get Request
         Request request = requestEvent.getRequest();
@@ -380,12 +397,12 @@ public class SipCall implements SipListener {
 
         // Get Server Transaction
         ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
-        if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
+        checkObjectNull("Fail to get Server Transaction", serverTransaction);
 
         // 요청 유형에 따라 처리
         switch (request.getMethod()) {
             case Request.INVITE: {
-                ResponseManager.getInstance().respondToInvite(requestEvent, serverTransaction, messageFactory, addressFactory, headerFactory, sipProvider, port, this);
+                ResponseManager.getInstance().respondToInvite(requestEvent, serverTransaction, messageFactory, addressFactory, headerFactory, port, this);
                 break;
             }
             case Request.ACK: {
@@ -428,7 +445,7 @@ public class SipCall implements SipListener {
      */
     @Override
     public void processResponse(final ResponseEvent responseEvent) {
-        if (responseEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, responseEvent);
 
         // Get Response
         Response response = responseEvent.getResponse();
@@ -454,7 +471,7 @@ public class SipCall implements SipListener {
                     if (methodName.equals(Request.INVITE)) {
                         // New ACK Request
                         Request request = dialog.createAck(((CSeqHeader) response.getHeader("CSeq")).getSeqNumber());
-                        if(request == null) throw new NullPointerException("Fail to create ACK Request");
+                        checkObjectNull("Fail to create ACK Request", request);
 
                         // Send
                         dialog.sendAck(request);
@@ -487,7 +504,7 @@ public class SipCall implements SipListener {
      */
     @Override
     public void processTimeout(final TimeoutEvent timeoutEvent) {
-        if (timeoutEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, timeoutEvent);
 
         logger.debug("Timeout occurred!!");
         String methodName;
@@ -533,14 +550,15 @@ public class SipCall implements SipListener {
      */
     @Override
     public void processIOException(final IOExceptionEvent ioExceptionEvent) {
-        if (ioExceptionEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, ioExceptionEvent);
+
         logger.debug("Host : {}", ioExceptionEvent.getHost());
         logger.debug("Transport : {}", ioExceptionEvent.getTransport());
         logger.debug("Port : {}", ioExceptionEvent.getPort());
 
         // Get SipProvider
         SipProvider sipProvider = (SipProvider) ioExceptionEvent.getSource();
-        if (sipProvider == null) throw new NullPointerException("Fail to get SIP Provider");
+        checkObjectNull("Fail to get SIP Provider", sipProvider);
 
         // Remove All ListeningPoints
         try {
@@ -568,7 +586,7 @@ public class SipCall implements SipListener {
      */
     @Override
     public void processTransactionTerminated(final TransactionTerminatedEvent transactionTerminatedEvent) {
-        if (transactionTerminatedEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, transactionTerminatedEvent);
 
         Transaction transaction;
         String transactionType;
@@ -578,11 +596,11 @@ public class SipCall implements SipListener {
 
         if (transactionTerminatedEvent.isServerTransaction()) {
             transaction = transactionTerminatedEvent.getServerTransaction();
-            if (transaction == null) throw new NullPointerException("Fail to get Server Transaction");
+            checkObjectNull("Fail to get Server Transaction", transaction);
             transactionType = "Server";
         } else {
             transaction = transactionTerminatedEvent.getClientTransaction();
-            if (transaction == null) throw new NullPointerException("Fail to get Client Transaction");
+            checkObjectNull("Fail to get Client Transaction", transaction);
             transactionType = "Client";
         }
 
@@ -600,14 +618,14 @@ public class SipCall implements SipListener {
      */
     @Override
     public void processDialogTerminated(final DialogTerminatedEvent dialogTerminatedEvent) {
-        if (dialogTerminatedEvent == null) throw new NullPointerException("Parameter Error");
+        checkObjectNull(null, dialogTerminatedEvent);
 
         Dialog dialog = dialogTerminatedEvent.getDialog();
-        if (dialog == null) throw new NullPointerException("Fail to get Dialog");
+        checkObjectNull("Fail to get Dialog", dialog);
 
         DialogState dialogState = dialog.getState();
         CallIdHeader callIdHeader = dialog.getCallId();
-        if (callIdHeader == null) throw new NullPointerException("Fail to get Call-ID");
+        checkObjectNull("Fail to get Call-ID Header", callIdHeader);
 
         String callId = callIdHeader.getCallId();
         String localTag = dialog.getLocalTag();

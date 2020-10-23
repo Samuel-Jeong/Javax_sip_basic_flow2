@@ -53,20 +53,19 @@ public class ResponseManager {
      * @param messageFactory    SIP 메시지 인터페이스(입력, 읽기 전용)
      * @param addressFactory    SIP 메시지 주소 인터페이스(입력, 읽기 전용)
      * @param headerFactory     SIP 메시지 헤더 인터페이스(입력, 읽기 전용)
-     * @param SipProvider       SIP Stack 관리 인터페이스(입력, 읽기 전용)
      * @param port              포트 번호(입력)
      * @param sipCall           SIP 호 관리 객체(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    public void respondToInvite(final RequestEvent requestEvent, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final AddressFactory addressFactory, final HeaderFactory headerFactory, final SipProvider SipProvider, int port, final SipCall sipCall) {
-        if (requestEvent == null || messageFactory == null || addressFactory == null || headerFactory == null || SipProvider == null || sipCall == null || port <= 0)
-            throw new NullPointerException("Parameter Error");
+    public void respondToInvite(final RequestEvent requestEvent, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final AddressFactory addressFactory, final HeaderFactory headerFactory, int port, final SipCall sipCall) {
+        if(port <= 0) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, requestEvent, serverTransaction, messageFactory, addressFactory, headerFactory, sipCall);
 
         Request request = requestEvent.getRequest();
         try {
             // Get Or New Dialog
             Dialog dialog = SipCall.getDialogFromRequestEvent(requestEvent, serverTransaction);
-            if (dialog == null) throw new NullPointerException("Fail to create Dialog");
+            SipCall.checkObjectNull("Fail to create Dialog", dialog);
 
             // Get Call-ID Header from New Dialog
             CallIdHeader callIdHeader = dialog.getCallId();
@@ -116,7 +115,7 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     public void respondToBye(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory) {
-        if (request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, request, serverTransaction, messageFactory);
 
         try {
             CallIdHeader callIdHeader = serverTransaction.getDialog().getCallId();
@@ -130,7 +129,7 @@ public class ResponseManager {
             } else { // 200 OK
                 response = messageFactory.createResponse(Response.OK, request);
             }
-            if (response == null) throw new NullPointerException("Fail to create new response");
+            SipCall.checkObjectNull("Fail to create new response", response);
 
             // Add Transaction
             SipCall.addTransactionHashMap(callIdHeader, serverTransaction);
@@ -155,14 +154,14 @@ public class ResponseManager {
      * @return 시간 초과가 발생한 요청의 Method 이름
      */
     public String respondToTimeout(final TimeoutEvent timeoutEvent, final MessageFactory messageFactory) {
-        if (timeoutEvent == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, timeoutEvent, messageFactory);
 
         String methodName = null;
 
         try {
             // Get Server Transaction
             ServerTransaction serverTransaction = timeoutEvent.getServerTransaction();
-            if (serverTransaction == null) throw new NullPointerException("Fail to get Server Transaction");
+            SipCall.checkObjectNull("Fail to get Server Transaction", serverTransaction);
 
             // Get Request & Method Name
             Request request = serverTransaction.getRequest();
@@ -170,7 +169,7 @@ public class ResponseManager {
 
             // New Timeout Response
             Response response = messageFactory.createResponse(Response.REQUEST_TIMEOUT, request);
-            if (response == null) throw new NullPointerException("Fail to create new response");
+            SipCall.checkObjectNull("Fail to create new response", response);
 
             // Send
             serverTransaction.sendResponse(response);
@@ -192,12 +191,12 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     public void respondWith2xxToNonInviteReq(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType) {
-        if (request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, request, serverTransaction, messageFactory);
 
         try {
             // New Response
             Response response = messageFactory.createResponse(responseType, request);
-            if (response == null) throw new NullPointerException("Fail to create new response");
+            SipCall.checkObjectNull("Fail to create new response", response);
 
             // Send
             serverTransaction.sendResponse(response);
@@ -216,10 +215,10 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     public void respondToCancel(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory) {
-        if(request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, request, serverTransaction, messageFactory);
 
         CallIdHeader callIdHeader = serverTransaction.getDialog().getCallId();
-        if(callIdHeader == null) throw new NullPointerException("Fail to get Call-ID Header");
+        SipCall.checkObjectNull(null, callIdHeader);
 
         // 기존에 Invite 가 존재하면 존재하는 Invite 에 대해 487 Request Terminated
         Request oldRequest;
@@ -245,8 +244,7 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     private void respondWith487ToInviteByCancel(final Request request, final CallIdHeader callIdHeader, final MessageFactory messageFactory) {
-        if (request == null || callIdHeader == null || messageFactory == null)
-            throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, request, callIdHeader, messageFactory);
 
         try {
             // 같은 Call-ID 를 가진 Transaction 을 찾는다.
@@ -281,8 +279,7 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     public void respondWith4xx(final ServerTransaction serverTransaction, final MessageFactory messageFactory, int responseType) {
-        if (serverTransaction == null || messageFactory == null)
-            throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, serverTransaction, messageFactory);
 
         try {
             // Get Server Transaction & Request
@@ -316,15 +313,14 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     private void respondWith1xxToInvite(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, int statusCode) {
-        if (request == null || serverTransaction == null || messageFactory == null)
-            throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, request, serverTransaction, messageFactory);
 
         if(!request.getMethod().equals(Request.INVITE)) return;
 
         try {
             // New 1xx Response
             Response response = messageFactory.createResponse(statusCode, request);
-            if (response == null) throw new NullPointerException("Fail to create new response");
+            SipCall.checkObjectNull("Fail to create new response", response);
 
             // Send
             serverTransaction.sendResponse(response);
@@ -345,8 +341,7 @@ public class ResponseManager {
      * @return 반환값 없음
      */
     private void respondWith200ToInvite(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory, final HeaderFactory headerFactory, final AddressFactory addressFactory) {
-        if (request == null || serverTransaction == null || messageFactory == null ||
-                headerFactory == null || addressFactory == null) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, request, serverTransaction, messageFactory, headerFactory, addressFactory);
 
         if(!request.getMethod().equals(Request.INVITE)) return;
 
@@ -356,11 +351,11 @@ public class ResponseManager {
 
             // New 200 OK Response
             Response response = messageFactory.createResponse(Response.OK, request);
-            if (response == null) throw new NullPointerException("Fail to create new response");
+            SipCall.checkObjectNull("Fail to create new response", response);
 
             // New Content Type Header
             ContentTypeHeader contentTypeHeader = headerFactory.createContentTypeHeader("application", "sdp");
-            if (contentTypeHeader == null) throw new NullPointerException("Fail to create Content Type Header");
+            SipCall.checkObjectNull("Fail to create Content Type Header", contentTypeHeader);
 
             // Apply SDP to Content Type Header
             byte[] sdpBytes = sdp.getBytes();
@@ -369,7 +364,7 @@ public class ResponseManager {
             // New Contact Header
             Address address = addressFactory.createAddress("<" + request.getRequestURI().toString() + ">");
             ContactHeader contactHeader = headerFactory.createContactHeader(address);
-            if (contactHeader == null) throw new NullPointerException("Fail to create Contact Header");
+            SipCall.checkObjectNull("Fail to create Contact Header", contactHeader);
 
             // Apply Contact Header to Response
             response.addHeader(contactHeader);

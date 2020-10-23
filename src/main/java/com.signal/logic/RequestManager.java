@@ -57,45 +57,45 @@ public class RequestManager {
         try {
             // Contact
             Address contactAddress = sipCall.addressFactory.createAddress("sip:" + sipCall.getUserName() + "@" + sipCall.getIp() + ":" + sipCall.getPort());
-            if (contactAddress == null) throw new NullPointerException("Fail to create Contact Header");
+            SipCall.checkObjectNull("Fail to create Contact Header", contactAddress);
             ContactHeader contactHeader = sipCall.headerFactory.createContactHeader(contactAddress);
 
             // RequestURI
             Address addressTo = sipCall.addressFactory.createAddress("sip:" + toURI + ":" + 5060);
-            if (addressTo == null) throw new NullPointerException("Fail to create new To Header");
+            SipCall.checkObjectNull("Fail to create new To Header", addressTo);
             javax.sip.address.URI requestURI = addressTo.getURI();
 
             // Via
             ArrayList<ViaHeader> viaHeaders = new ArrayList<>();
             ViaHeader viaHeader = sipCall.headerFactory.createViaHeader(sipCall.getIp(), sipCall.getPort(), "udp", null);
-            if (viaHeader == null) throw new NullPointerException("Fail to create new Via Header");
+            SipCall.checkObjectNull("Fail to create new Via Header", viaHeader);
             viaHeaders.add(viaHeader);
 
             // Max-forwards
             MaxForwardsHeader maxForwardsHeader = sipCall.headerFactory.createMaxForwardsHeader(70);
-            if (maxForwardsHeader == null) throw new NullPointerException("Fail to create new Max-Forwards Header");
+            SipCall.checkObjectNull("Fail to create new Max-Forwards Header", maxForwardsHeader);
 
             // Call-ID
             CallIdHeader callIdHeader = sipCall.getSipProvider().getNewCallId();
-            if (callIdHeader == null) throw new NullPointerException("Fail to create new Call-ID Header");
+            SipCall.checkObjectNull("Fail to create new Call-ID Header", callIdHeader);
 
             // CSeq
             CSeqHeader cSeqHeader = sipCall.headerFactory.createCSeqHeader(1L, "INVITE");
-            if (cSeqHeader == null) throw new NullPointerException("Fail to create new CSeq Header");
+            SipCall.checkObjectNull("Fail to create new CSeq Header", cSeqHeader);
 
             // From
             String tag = makeTag();
             FromHeader fromHeader = sipCall.headerFactory.createFromHeader(contactAddress, tag);
-            if (fromHeader == null) throw new NullPointerException("Fail to create new From Header");
+            SipCall.checkObjectNull("Fail to create new From Header", fromHeader);
 
             // To
             ToHeader toHeader = sipCall.headerFactory.createToHeader(addressTo, null);
-            if (toHeader == null) throw new NullPointerException("Fail to create new To Header");
+            SipCall.checkObjectNull("Fail to create new To Header", toHeader);
 
             Request request = sipCall.messageFactory.createRequest(
                     requestURI, "INVITE", callIdHeader, cSeqHeader, fromHeader,
                     toHeader, viaHeaders, maxForwardsHeader);
-            if (request == null) throw new NullPointerException("Fail to create new Request");
+            SipCall.checkObjectNull("Fail to create new Request", request);
 
             request.addHeader(contactHeader);
 
@@ -103,16 +103,16 @@ public class RequestManager {
             String sdp = SipCall.makeSdp();
             byte[] contents = sdp.getBytes();
             ContentTypeHeader contentTypeHeader = sipCall.headerFactory.createContentTypeHeader("application", "sdp");
-            if (contentTypeHeader == null) throw new NullPointerException("Fail to create Content Type Header");
+            SipCall.checkObjectNull("Fail to create Content Type Header", contentTypeHeader);
             request.setContent(contents, contentTypeHeader);
 
             // New Client Transaction
             ClientTransaction clientTransaction = sipCall.getSipProvider().getNewClientTransaction(request);
-            if (clientTransaction == null) throw new NullPointerException("Fail to create Client Transaction");
+            SipCall.checkObjectNull("Fail to create Client Transaction", clientTransaction);
 
             // New Dialog
             Dialog dialog = sipCall.getSipProvider().getNewDialog(clientTransaction);
-            if (dialog == null) throw new NullPointerException("Fail to create Dialog");
+            SipCall.checkObjectNull("Fail to create Dialog", dialog);
 
             // Add Transaction
             logger.debug("Invite Call-ID : {}", dialog.getCallId());
@@ -134,7 +134,7 @@ public class RequestManager {
      * @return 반환값 없음
      */
     public void requestBye(final RequestEvent requestEvent) {
-        if (requestEvent == null) throw new NullPointerException("Parameter Error");
+        SipCall.checkObjectNull(null, requestEvent);
 
         try {
             Dialog dialog = requestEvent.getDialog();
@@ -150,11 +150,11 @@ public class RequestManager {
 
             // New Bye Request
             Request byeRequest = dialog.createRequest(Request.BYE);
-            if (byeRequest == null) throw new NullPointerException("Fail to create Bye");
+            SipCall.checkObjectNull("Fail to create Bye", byeRequest);
 
             // New Client Transaction
             ClientTransaction clientTransaction = provider.getNewClientTransaction(byeRequest);
-            if (clientTransaction == null) throw new NullPointerException("Fail to create Client Transaction");
+            SipCall.checkObjectNull("Fail to create Client Transaction", clientTransaction);
             dialog.sendRequest(clientTransaction);
             SipCall.addTransactionHashMap(dialog.getCallId(), clientTransaction);
 
