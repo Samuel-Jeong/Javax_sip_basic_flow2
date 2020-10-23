@@ -13,6 +13,7 @@ import javax.sip.message.Request;
 import javax.sip.message.Response;
 import java.util.HashMap;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @class public class com.signal.logic.SipCall implements SipListener
@@ -387,7 +388,7 @@ public class SipCall implements SipListener {
             }
             case Request.ACK: {
 //                try {
-//                    TimeUnit.SECONDS.sleep(2);
+//                    TimeUnit.SECONDS.sleep(1);
 //                } catch (InterruptedException e) {
 //                    e.printStackTrace();
 //                }
@@ -396,7 +397,7 @@ public class SipCall implements SipListener {
                 break;
             }
             case Request.BYE: {
-                ResponseManager.getInstance().respondToBye(requestEvent, messageFactory);
+                ResponseManager.getInstance().respondToBye(request, serverTransaction, messageFactory);
                 break;
             }
             case Request.CANCEL: {

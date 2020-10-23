@@ -1,6 +1,5 @@
 package com.signal.logic;
 
-import gov.nist.javax.sip.header.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,24 +111,22 @@ public class ResponseManager {
     }
 
     /**
-     * @fn public void respondToBye(final RequestEvent requestEvent, final MessageFactory messageFactory)
+     * @fn public void respondToBye(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory)
      * @brief Bye 요청에 응답하는 함수
-     * @param requestEvent   요청 이벤트(입력, 읽기 전용)
-     * @param messageFactory SIP 메시지 인터페이스(입력, 읽기 전용)
+     * @param request           요청(입력, 읽기 전용)
+     * @param serverTransaction 서버 트랜잭션(입력, 읽기 전용)
+     * @param messageFactory    SIP 메시지 인터페이스(입력, 읽기 전용)
      * @return 반환값 없음
      */
-    public void respondToBye(final RequestEvent requestEvent, final MessageFactory messageFactory) {
-        if (requestEvent == null || messageFactory == null) throw new NullPointerException("Parameter Error");
+    public void respondToBye(final Request request, final ServerTransaction serverTransaction, final MessageFactory messageFactory) {
+        if (request == null || serverTransaction == null || messageFactory == null) throw new NullPointerException("Parameter Error");
 
         try {
-            CallIdHeader callIdHeader = requestEvent.getDialog().getCallId();
+            CallIdHeader callIdHeader = serverTransaction.getDialog().getCallId();
             logger.debug("Bye Call-ID : {}", callIdHeader);
 
-            // Get Request
-            Request request = requestEvent.getRequest();
-            Response response;
-
             // Find Dialog & New Response
+            Response response;
             if (SipCall.findDialogHashMap(callIdHeader)) { // 481 Call/Transaction Does Not Exist
                 response = messageFactory.createResponse(Response.CALL_OR_TRANSACTION_DOES_NOT_EXIST, request);
                 logger.debug("Call/Transaction Does Not Exist");
@@ -138,8 +135,7 @@ public class ResponseManager {
             }
             if (response == null) throw new NullPointerException("Fail to create new response");
 
-            // Get Server Transaction
-            ServerTransaction serverTransaction = SipCall.getServerTransactionFromRequestEvent(requestEvent);
+            // Add Transaction
             SipCall.addTransactionHashMap(callIdHeader, serverTransaction);
 
             // Send
